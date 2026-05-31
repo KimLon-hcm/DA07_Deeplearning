@@ -5,6 +5,7 @@ from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
+from ultralytics import YOLO
 
 app = FastAPI(title="Corn Leaf Disease Classification API")
 
@@ -64,31 +65,60 @@ app.add_middleware(
 )
 
 # Configuration
-MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Model', 'ViT_Scratch_best.keras'))
+VIT_MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Model', 'YOLO_ViT_best.keras'))
+YOLO_MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'best_yolo_v17.pt'))
 IMAGE_SIZE = (224, 224)
 CLASSES = ["blight", "common_rust", "gray_spot", "healthy", "not_corn_leaf"]
 
 # Load model globally
 model = None
+yolo_model = None
 
 @app.on_event("startup")
 async def load_keras_model():
-    global model
+    global model, yolo_model
     try:
-        print(f"Loading model from {MODEL_PATH}...")
+        print(f"Loading YOLO model from {YOLO_MODEL_PATH}...")
+        yolo_model = YOLO(YOLO_MODEL_PATH)
+        print("YOLO Model loaded successfully.")
+        
+        print(f"Loading ViT model from {VIT_MODEL_PATH}...")
         model = tf.keras.models.load_model(
-            MODEL_PATH,
+            VIT_MODEL_PATH,
             custom_objects={'Patches': Patches, 'PatchEncoder': PatchEncoder}
         )
-        print("Model loaded successfully.")
+        print("ViT Model loaded successfully.")
     except Exception as e:
-        print(f"Error loading model: {e}")
+        print(f"Error loading models: {e}")
 
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
     try:
         image = Image.open(io.BytesIO(image_bytes))
         if image.mode != "RGB":
             image = image.convert("RGB")
+            
+        # YOLO Crop Logic
+        if yolo_model is not None:
+            w, h = image.size
+            results = yolo_model.predict(source=image, conf=0.25, verbose=False)
+            boxes = results[0].boxes
+            if boxes is not None and len(boxes) > 0:
+                confs = boxes.conf.cpu().numpy()
+                best_idx = int(np.argmax(confs))
+                xyxy = boxes.xyxy[best_idx].cpu().numpy()
+                x1, y1, x2, y2 = xyxy
+
+                pad_x = int((x2 - x1) * 0.15)
+                pad_y = int((y2 - y1) * 0.15)
+
+                x1 = max(0, int(x1) - pad_x)
+                y1 = max(0, int(y1) - pad_y)
+                x2 = min(w, int(x2) + pad_x)
+                y2 = min(h, int(y2) + pad_y)
+
+                if x2 > x1 and y2 > y1:
+                    image = image.crop((x1, y1, x2, y2))
+                    
         image = image.resize(IMAGE_SIZE)
         image_array = np.array(image, dtype=np.float32)
         # Normalize to [0, 1]
