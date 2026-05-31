@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ```bash
 uvicorn main:app --reload
 
-
+chờ nó chạy ra INFO:     Application startup complete. ròi mới tiếp tục
 ## 3. Thiết lập và Chạy Frontend
 
 Frontend được phát triển bằng ReactJS với Vite và Tailwind CSS.
