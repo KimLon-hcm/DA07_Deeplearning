@@ -1,6 +1,8 @@
-# Hướng dẫn Cài đặt và Chạy Dự án (Corn Leaf Disease Classification)
+# Hướng dẫn Cài đặt và Chạy Dự án 
 
-Dự án này bao gồm hai phần chính: Backend (FastAPI + TensorFlow) và Frontend (React + Vite). Dưới đây là hướng dẫn chi tiết để thiết lập và chạy dự án khi thành viên khác clone về máy.
+Dự án này bao gồm hai phần chính: Backend (FastAPI + TensorFlow) và Frontend (React + Vite). 
+
+Dưới đây là hướng dẫn chi tiết để thiết lập và chạy dự án
 
 ## Yêu cầu hệ thống
 - Python 3.8 trở lên
@@ -18,8 +20,6 @@ cd DA07_Deeplearning
 
 Backend được viết bằng Python (FastAPI) và sử dụng thư viện TensorFlow để load model dự đoán.
 
-*Lưu ý:* Mã nguồn backend sẽ tự động load file model từ đường dẫn `Model/ViT_Scratch_best.keras` tính từ thư mục gốc của dự án. Hãy chắc chắn file model này tồn tại trước khi chạy.
-
 ###  Mở một terminal
 ### Bước 1: Di chuyển vào thư mục backend
 
@@ -27,7 +27,7 @@ Backend được viết bằng Python (FastAPI) và sử dụng thư viện Tens
 cd Source_code/backend
 ```
 
-### Bước 2: Tạo và kích hoạt môi trường ảo (Khuyến nghị)
+### Bước 2: Tạo và kích hoạt môi trường ảo 
 **Trên Windows:**
 ```bash
 python -m venv venv
@@ -68,5 +68,5 @@ xog trên màn hình terminal hiển thị 1 cái link localhost thì ctrl + cli
 ## Cấu trúc thư mục quan trọng
 - `Source_code/backend/`: Chứa mã nguồn của API Server.
 - `Source_code/frontend/`: Chứa mã nguồn giao diện người dùng.
-- `Model/`: Thư mục lưu trữ model đã được train (ví dụ: `ViT_Scratch_best.keras`).
-- `Dataset/`: Chứa dữ liệu ảnh (nếu có trong quá trình train).
+- `Model/`: Thư mục lưu trữ model đã được train (ví dụ: `Yolo_best.keras`).
+- `Dataset/`: Chứa dữ liệu ảnh
