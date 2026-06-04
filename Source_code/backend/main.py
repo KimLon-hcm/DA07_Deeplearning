@@ -6,6 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from ultralytics import YOLO
+from tensorflow.keras.applications.resnet50 import preprocess_input
 
 app = FastAPI(title="Corn Leaf Disease Classification API")
 
@@ -65,7 +66,7 @@ app.add_middleware(
 )
 
 # Configuration
-VIT_MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Model', 'YOLO_ViT_best.keras'))
+RESNET_MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Model', 'YOLO_ResNet50_ImageNet_Frozen_best.keras'))
 YOLO_MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'best_yolo_v17.pt'))
 IMAGE_SIZE = (224, 224)
 CLASSES = ["blight", "common_rust", "gray_spot", "healthy", "not_corn_leaf"]
@@ -82,12 +83,9 @@ async def load_keras_model():
         yolo_model = YOLO(YOLO_MODEL_PATH)
         print("YOLO Model loaded successfully.")
         
-        print(f"Loading ViT model from {VIT_MODEL_PATH}...")
-        model = tf.keras.models.load_model(
-            VIT_MODEL_PATH,
-            custom_objects={'Patches': Patches, 'PatchEncoder': PatchEncoder}
-        )
-        print("ViT Model loaded successfully.")
+        print(f"Loading ResNet50 model from {RESNET_MODEL_PATH}...")
+        model = tf.keras.models.load_model(RESNET_MODEL_PATH)
+        print("ResNet50 Model loaded successfully.")
     except Exception as e:
         print(f"Error loading models: {e}")
 
@@ -108,23 +106,31 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
                 xyxy = boxes.xyxy[best_idx].cpu().numpy()
                 x1, y1, x2, y2 = xyxy
 
-                pad_x = int((x2 - x1) * 0.15)
-                pad_y = int((y2 - y1) * 0.15)
+                box_w = x2 - x1
+                box_h = y2 - y1
+                box_area = box_w * box_h
+                img_area = w * h
+                
+                # If box is not too small
+                if box_area / img_area >= 0.03:
+                    # Padding 0.5 like in notebook
+                    pad_x = int(box_w * 0.5)
+                    pad_y = int(box_h * 0.5)
 
-                x1 = max(0, int(x1) - pad_x)
-                y1 = max(0, int(y1) - pad_y)
-                x2 = min(w, int(x2) + pad_x)
-                y2 = min(h, int(y2) + pad_y)
+                    x1 = max(0, int(x1) - pad_x)
+                    y1 = max(0, int(y1) - pad_y)
+                    x2 = min(w, int(x2) + pad_x)
+                    y2 = min(h, int(y2) + pad_y)
 
-                if x2 > x1 and y2 > y1:
-                    image = image.crop((x1, y1, x2, y2))
+                    if x2 > x1 and y2 > y1:
+                        image = image.crop((x1, y1, x2, y2))
                     
         image = image.resize(IMAGE_SIZE)
         image_array = np.array(image, dtype=np.float32)
-        # Normalize to [0, 1]
-        image_array = image_array / 255.0
         # Add batch dimension
         image_array = np.expand_dims(image_array, axis=0)
+        # ResNet50 preprocessing
+        image_array = preprocess_input(image_array)
         return image_array
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Image preprocessing failed: {e}")
